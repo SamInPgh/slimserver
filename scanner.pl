@@ -53,7 +53,7 @@ BEGIN {
 		$ENV{PATH} = "$path;" . $ENV{PATH} if -d $path;
 	}
 
-	our $VERSION = '9.0.1';
+	our $VERSION = '9.0.2';
 	use Slim::bootstrap;
 	use Slim::Utils::OSDetect;
 
