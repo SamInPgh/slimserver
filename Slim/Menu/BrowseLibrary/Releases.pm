@@ -16,12 +16,15 @@ my $prefs = preferences('server');
 sub _releases {
 	my ($client, $callback, $args, $pt) = @_;
 	my @searchTags = $pt->{'searchTags'} ? @{$pt->{'searchTags'}} : ();
-	my @originalSearchTags = @searchTags;
 	my $tags       = 'lWRSw';
 	my $library_id = $args->{'library_id'} || $pt->{'library_id'};
 	my $orderBy    = $args->{'orderBy'} || $pt->{'orderBy'};
 	my $menuMode   = $args->{'params'}->{'menu_mode'};
 	my $menuRoles  = $args->{'params'}->{'menu_roles'};
+	my $search     = $args->{'search'};
+
+	push @searchTags, "search:$search" if $search && !grep /search:/, @searchTags;
+	my @originalSearchTags = @searchTags;
 
 	# map menuRoles to name for readability
 	$menuRoles = join(',', map { Slim::Schema::Contributor->roleToType($_) } split(',', $menuRoles || ''));
@@ -52,7 +55,7 @@ sub _releases {
 	main::INFOLOG && $log->is_info && $log->info("$query ($index, $quantity): tags ->", join(', ', @searchTags));
 
 	# get the artist's albums list to create releases sub-items etc.
-	my $request = Slim::Control::Request->new( undef, [ $query, 0, MAX_ALBUMS, @searchTags, 'role_id:'. ($menuRoles ? $menuRoles : join(',',Slim::Schema::Contributor->contributorRoles)) ] );
+	my $request = Slim::Control::Request->new( undef, [ $query, 0, MAX_ALBUMS, @searchTags ] );
 	$request->execute();
 
 	$log->error($request->getStatusText()) if $request->isStatusError();
@@ -167,14 +170,14 @@ sub _releases {
 
 		if ($releaseTypes{uc($releaseType)}) {
 			$pt->{'searchTags'} = $releaseType eq 'COMPILATION'
-				? [@searchTags, 'compilation:1', "album_id:" . join(',', @{$albumList{$releaseType}})]
-				: [@searchTags, "compilation:0", "release_type:$releaseType", "album_id:" . join(',', @{$albumList{$releaseType}})];
+				? [@searchTags, 'compilation:1']
+				: [@searchTags, "compilation:0", "release_type:$releaseType"];
 			push @items, _createItem($name, [{%$pt}]);
 		}
 	}
 
 	if (my $albumIds = delete $contributions{COMPOSERALBUM}) {
-		$pt->{'searchTags'} = [@searchTags, "role_id:COMPOSER", "album_id:" . join(',', @$albumIds)];
+		$pt->{'searchTags'} = [@searchTags, "role_id:COMPOSER"];
 		push @items, _createItem(cstring($client, 'COMPOSERALBUMS'), [{%$pt}]);
 	}
 
@@ -186,18 +189,18 @@ sub _releases {
 			playlist    => \&_tracks,
 			# for compositions we want to have the compositions only, not the albums
 			url         => \&_tracks,
-			passthrough => [ { searchTags => [@searchTags, "role_id:COMPOSER", "album_id:" . join(',', @$albumIds)] } ],
+			passthrough => [ { searchTags => [@searchTags, "role_id:COMPOSER"] } ],
 		};
 	}
 
 	if (my $albumIds = delete $contributions{TRACKARTIST}) {
-		$pt->{'searchTags'} = [@searchTags, "role_id:TRACKARTIST", "album_id:" . join(',', @$albumIds)];
+		$pt->{'searchTags'} = [@searchTags, "role_id:TRACKARTIST"];
 		push @items, _createItem(cstring($client, 'APPEARANCES'), [{%$pt}]);
 	}
 
 	foreach my $role (sort keys %contributions) {
 		my $name = cstring($client, $role) if Slim::Utils::Strings::stringExists($role);
-		$pt->{'searchTags'} = [@searchTags, "role_id:$role", "album_id:" . join(',', @{$contributions{$role}})];
+		$pt->{'searchTags'} = [@searchTags, "role_id:$role"];
 		push @items, _createItem($name || ucfirst($role), [{%$pt}]);
 	}
 
