@@ -929,9 +929,15 @@ sub albumsQuery {
 			}
 
 			if ( $tags =~ /R/ ) {
-				$contributorRoleSth ||= $dbh->prepare_cached("SELECT role FROM contributor_album WHERE album = ? AND contributor = ?");
-				my $rolesRef = $dbh->selectall_arrayref($contributorRoleSth, , undef, $c->{'albums.id'}, $contributorID || $c->{'albums.contributor'});
-
+				my $rolesRef;
+				my $contributorRoleSql = "SELECT role FROM contributor_album WHERE album = ?";
+				$contributorRoleSql .= " AND contributor = ?" if $contributorID;
+				$contributorRoleSth ||= $dbh->prepare_cached($contributorRoleSql);
+				if ( $contributorID ) {
+					$rolesRef = $dbh->selectall_arrayref( $contributorRoleSth, undef, ($c->{'albums.id'}, $contributorID) );
+				} else {
+					$rolesRef = $dbh->selectall_arrayref( $contributorRoleSth, undef, ($c->{'albums.id'}) );
+				}
 				if ($rolesRef) {
 					my $roles = join(',', map { $_->[0] } @$rolesRef);
 					$request->addResultLoopIfValueDefined($loopname, $chunkCount, 'role_ids', $roles);
