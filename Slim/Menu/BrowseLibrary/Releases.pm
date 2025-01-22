@@ -166,22 +166,11 @@ sub _releases {
 		!$primaryReleaseTypes{$_};
 	} keys %releaseTypes);
 
-	my $limitList = sub {
-		my $list = shift;
-		my $name = shift;
-		my $albumCount = scalar @$list;
-		if ( $albumCount > LIST_LIMIT ) {
-			splice @$list, LIST_LIMIT;
-			$name .= ' (' . cstring($client, 'FIRST') . ' ' . LIST_LIMIT . ' ' . cstring($client, 'ALBUMS') .')';
-		}
-		return $list, $name;
-	};
-
 	foreach my $releaseType (@sortedReleaseTypes) {
 
 		if ($releaseTypes{uc($releaseType)}) {
 			my $name = Slim::Schema::Album->releaseTypeName($releaseType, $client);
-			($albumList{$releaseType}, $name) = $limitList->($albumList{$releaseType}, $name);
+			$name = _limitList($client, $albumList{$releaseType}, $name);
 			$pt->{'searchTags'} = $releaseType eq 'COMPILATION'
 				? [@searchTags, 'compilation:1', "album_id:" . join(',', @{$albumList{$releaseType}})]
 				: [@searchTags, "compilation:0", "release_type:$releaseType", "album_id:" . join(',', @{$albumList{$releaseType}})];
@@ -191,14 +180,14 @@ sub _releases {
 
 	if (my $albumIds = delete $contributions{COMPOSERALBUM}) {
 		my $name = cstring($client, 'COMPOSERALBUMS');
-		($albumIds, $name) = $limitList->($albumIds, $name);
+		$name = _limitList($client, $albumIds, $name);
 		$pt->{'searchTags'} = [@searchTags, "role_id:COMPOSER", "album_id:" . join(',', @$albumIds)];
 		push @items, _createItem($name, [{%$pt}]);
 	}
 
 	if (my $albumIds = delete $contributions{COMPOSER}) {
 		my $name = cstring($client, 'COMPOSITIONS');
-		($albumIds, $name) = $limitList->($albumIds, $name);
+		$name = _limitList($client, $albumIds, $name);
 		push @items, {
 			name        => $name,
 			image       => 'html/images/playlists.png',
@@ -212,14 +201,14 @@ sub _releases {
 
 	if (my $albumIds = delete $contributions{TRACKARTIST}) {
 		my $name = cstring($client, 'APPEARANCES');
-		($albumIds, $name) = $limitList->($albumIds, $name);
+		$name = _limitList($client, $albumIds, $name);
 		$pt->{'searchTags'} = [@searchTags, "role_id:TRACKARTIST", "album_id:" . join(',', @$albumIds)];
 		push @items, _createItem($name, [{%$pt}]);
 	}
 
 	foreach my $role (sort keys %contributions) {
 		my $name = cstring($client, $role) if Slim::Utils::Strings::stringExists($role);
-		($contributions{$role}, $name) = $limitList->($contributions{$role}, $name || ucfirst($role));
+		$name = _limitList($client, $contributions{$role}, $name || ucfirst($role));
 		$pt->{'searchTags'} = [@searchTags, "role_id:$role", "album_id:" . join(',', @{$contributions{$role}})];
 		push @items, _createItem($name, [{%$pt}]);
 	}
@@ -297,6 +286,16 @@ sub _createItem {
 		url         => \&_albums,
 		passthrough => $pt,
 	};
+}
+
+sub _limitList {
+	my ($client, $listRef, $name) = @_;
+	my $albumCount = scalar @$listRef;
+	if ( $albumCount > LIST_LIMIT ) {
+		splice @$listRef, LIST_LIMIT;
+		$name .= ' ' . cstring($client, 'FIRST_N_ALBUMS', LIST_LIMIT);
+	}
+	return $name;
 }
 
 1;

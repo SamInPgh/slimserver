@@ -931,12 +931,11 @@ sub albumsQuery {
 			if ( $tags =~ /R/ ) {
 				my $rolesRef;
 				my $contributorRoleSql = "SELECT role FROM contributor_album WHERE album = ?";
+				$contributorRoleSql .= " AND contributor = ?" if $contributorID;
+				$contributorRoleSth ||= $dbh->prepare_cached($contributorRoleSql);
 				if ( $contributorID ) {
-					$contributorRoleSql .= " AND contributor = ?";
-					$contributorRoleSth ||= $dbh->prepare_cached($contributorRoleSql);
 					$rolesRef = $dbh->selectall_arrayref($contributorRoleSth, , undef, $c->{'albums.id'}, $contributorID);
 				} else {
-					$contributorRoleSth ||= $dbh->prepare_cached($contributorRoleSql);
 					$rolesRef = $dbh->selectall_arrayref($contributorRoleSth, , undef, $c->{'albums.id'});
 				}
 				if ($rolesRef) {
