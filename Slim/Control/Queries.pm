@@ -934,9 +934,9 @@ sub albumsQuery {
 				$contributorRoleSql .= " AND contributor = ?" if $contributorID;
 				$contributorRoleSth ||= $dbh->prepare_cached($contributorRoleSql);
 				if ( $contributorID ) {
-					$rolesRef = $dbh->selectall_arrayref($contributorRoleSth, , undef, $c->{'albums.id'}, $contributorID);
+					$rolesRef = $dbh->selectall_arrayref( $contributorRoleSth, undef, ($c->{'albums.id'}, $contributorID) );
 				} else {
-					$rolesRef = $dbh->selectall_arrayref($contributorRoleSth, , undef, $c->{'albums.id'});
+					$rolesRef = $dbh->selectall_arrayref( $contributorRoleSth, undef, ($c->{'albums.id'}) );
 				}
 				if ($rolesRef) {
 					my $roles = join(',', map { $_->[0] } @$rolesRef);
