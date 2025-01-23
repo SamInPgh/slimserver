@@ -123,7 +123,7 @@ runs:
 
         for f in publish/?yrion?usic?erver*;
         do
-          aws --profile downloads --endpoint-url https://e83bc03c881257fada7ca16c243e9298.eu.r2.cloudflarestorage.com s3 cp $f s3://downloads/$TARGET_FOLDER/
+          AWS_MAX_ATTEMPTS=10 aws --profile downloads --endpoint-url https://e83bc03c881257fada7ca16c243e9298.eu.r2.cloudflarestorage.com s3 cp $f s3://downloads/$TARGET_FOLDER/
         done
 
         rm -f $HOME/.aws/credentials
