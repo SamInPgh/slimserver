@@ -4835,6 +4835,7 @@ sub worksQuery {
 	my $genreID       = $request->getParam('genre_id');
 	my $year          = $request->getParam('year');
 	my $workID        = $request->getParam('work_id');
+	my $albumID       = $request->getParam('album_id');
 
 	# get them all by default
 	my $where = {};
@@ -4895,6 +4896,14 @@ sub worksQuery {
 			if (scalar @works) {
 				push @{$p}, @works;
 				push @{$w}, 'works.id IN (' . join(', ', map {'?'} @works) . ')';
+			}
+		}
+
+		if ( defined $albumID ) {
+			my @albums = split(',', $albumID);
+			if (scalar @albums) {
+				push @{$p}, @albums;
+				push @{$w}, 'albums.id IN (' . join(', ', map {'?'} @albums) . ')';
 			}
 		}
 
