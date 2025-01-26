@@ -4900,11 +4900,9 @@ sub worksQuery {
 		}
 
 		if ( defined $albumID ) {
-			my @albums = split(',', $albumID);
-			if (scalar @albums) {
-				push @{$p}, @albums;
-				push @{$w}, 'albums.id IN (' . join(', ', map {'?'} @albums) . ')';
-			}
+			# remove anything nasty that might have crept into the parameter
+			$albumID =~ s/[^0-9,]//g;
+			push @{$w}, "albums.id IN ($albumID)";
 		}
 
 		if ( defined $year ) {

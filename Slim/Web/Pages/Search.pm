@@ -612,7 +612,6 @@ sub fillInSearchResults {
 			'itemobj'      => $obj,
 			'level'        => 1,
 			'searchResult' => 1,
-			'albumId'      => $obj->get_column('albumId')
 		);
 
 		if ($favorites && (my $url = $obj->url) ) {
