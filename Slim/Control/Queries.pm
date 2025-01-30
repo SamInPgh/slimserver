@@ -4257,6 +4257,10 @@ sub statusQuery {
 				$idx = $start;
 				my $totalDuration = 0;
 
+				my $lastAlbumTrack = 0;
+				my $lastAlbum = 0;
+				my $albumNumber = 0; # a sequential id of each album instance in the play queue (albums/tracks could be repeated)
+				my %groups;
 				foreach( @tracks ) {
 					# Use songData for track, if remote use the object directly
 					my $data = ref $_ ? $_ : $songData->{$_};
@@ -4281,6 +4285,25 @@ sub statusQuery {
 									$data, $tags,
 									'playlist index', $idx, $fast
 								);
+
+						if ( $tags =~ /2/ ) {
+							# build a hash containing the grouping data for each album instance/track in the play queue.
+							my $track = $request->{_results}->{'playlist_loop'}[$count];
+							my $album = $track->{'album_id'};
+							my $tracknum = $track->{'tracknum'};
+							my $albumTrack = $album*10000+$tracknum; # used to detect a new album or a repeat of tracks from the same album
+							my $work = $track->{'work_id'} || '';
+							my $grouping = $track->{'grouping'} || '';
+							my $performance = $track->{'performance'} || '';
+							my $group = "$work##$grouping##$performance";
+							if ( $album != $lastAlbum || $albumTrack < $lastAlbumTrack ) {
+								++$albumNumber;
+							}
+							$lastAlbum = $album;
+							$lastAlbumTrack = $albumTrack;
+							$request->{_results}->{'playlist_loop'}[$count]->{'albumNumber'} = $albumNumber;
+							$groups{$albumNumber}->{$track->{'tracknum'}} = $group;
+						}
 					}
 
 					$count++;
@@ -4291,6 +4314,32 @@ sub statusQuery {
 					main::idleStreams() if ! ($count % 20);
 				}
 
+				if ( $tags =~ /2/ ) {
+					# process each album group in the playlist
+					foreach my $albumGroup (keys %groups) {
+						my $nonContiguous;
+						my $previousGroup;
+						my $groupSeen = {};
+						# determine whether album group contains contiguous or non-contiguous groups of tracks
+						foreach my $track ( sort { $a <=> $b } keys %{$groups{$albumGroup}} ) {
+							my $thisTrackGroup = $groups{$albumGroup}{$track};
+							if ( $previousGroup ne $thisTrackGroup ) {
+								if ( $nonContiguous = $groupSeen->{$thisTrackGroup} && $thisTrackGroup ne '####' ) {
+									last;
+								}
+								else {
+									$groupSeen->{$thisTrackGroup} = 1;
+									$previousGroup = $thisTrackGroup;
+								}
+							}
+						}
+						# now set the contiguous_groups flag in the playlist_loop array.
+						foreach ( grep { $_->{'albumNumber'} == $albumGroup } @{$request->{_results}->{'playlist_loop'}} ) {
+							$_->{'contiguous_groups'} = $nonContiguous ? 0 : 1;
+							delete $_->{'albumNumber'};
+						}
+					}
+				}
 				if ($totalOnly) {
 					$request->addResult('playlist duration', $totalDuration || 0);
 				}
