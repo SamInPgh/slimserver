@@ -4901,7 +4901,7 @@ sub worksQuery {
 
 		if ( defined $albumID ) {
 			# remove anything nasty that might have crept into the parameter
-			$albumID =~ s/[^0-9,]//g;
+			$albumId = join(',', grep /^\d+$/, split(',', $albumID));
 			push @{$w}, "albums.id IN ($albumID)";
 		}
 
