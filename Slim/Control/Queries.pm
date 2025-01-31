@@ -4319,7 +4319,7 @@ sub statusQuery {
 						my $groupSeen = {};
 						# determine whether album group contains contiguous or non-contiguous groups of tracks
 						foreach my $track ( sort { $a <=> $b } keys %{$groups{$albumGroup}} ) {
-							my $thisTrackGroup = $groups{$albumGroup}{$track};
+							my $thisTrackGroup = $groups{$albumGroup}->{$track};
 							if ( $previousGroup ne $thisTrackGroup ) {
 								if ( $nonContiguous = $groupSeen->{$thisTrackGroup} && $thisTrackGroup ne '####' ) {
 									last;
