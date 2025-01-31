@@ -4261,6 +4261,7 @@ sub statusQuery {
 				my $lastAlbum = 0;
 				my $albumNumber = 0; # a sequential id of each album instance in the play queue (albums/tracks could be repeated)
 				my %groups;
+				my %plIndexAlbumSequence;
 				foreach( @tracks ) {
 					# Use songData for track, if remote use the object directly
 					my $data = ref $_ ? $_ : $songData->{$_};
@@ -4287,22 +4288,18 @@ sub statusQuery {
 								);
 
 						if ( $tags =~ /2/ ) {
-							# build a hash containing the grouping data for each album instance/track in the play queue.
-							my $track = $request->{_results}->{'playlist_loop'}[$count];
-							my $album = $track->{'album_id'};
-							my $tracknum = $track->{'tracknum'};
-							my $albumTrack = $album*10000+$tracknum; # used to detect a new album or a repeat of tracks from the same album
-							my $work = $track->{'work_id'} || '';
-							my $grouping = $track->{'grouping'} || '';
-							my $performance = $track->{'performance'} || '';
-							my $group = "$work##$grouping##$performance";
-							if ( $album != $lastAlbum || $albumTrack < $lastAlbumTrack ) {
+							# build a hash containing the grouping data for each album instance/track in the play queue and another one
+							# mapping playlist entries to their album instance.
+							my $track = @{ $request->getResult('playlist_loop') }[$count];
+							my $albumTrack = $track->{'album_id'}*10000+$track->{'tracknum'}; # used to detect a new album or a repeat of tracks from the same album
+							my $group = "$track->{'work_id'}##$track->{'grouping'}##$track->{'performance'}";
+							if ( $track->{'album_id'} != $lastAlbum || $albumTrack < $lastAlbumTrack ) {
 								++$albumNumber;
 							}
-							$lastAlbum = $album;
+							$lastAlbum = $track->{'album_id'};
 							$lastAlbumTrack = $albumTrack;
-							$request->{_results}->{'playlist_loop'}[$count]->{'albumNumber'} = $albumNumber;
 							$groups{$albumNumber}->{$track->{'tracknum'}} = $group;
+							$plIndexAlbumSequence{$track->{'playlist index'}} = $albumNumber;
 						}
 					}
 
@@ -4334,9 +4331,8 @@ sub statusQuery {
 							}
 						}
 						# now set the contiguous_groups flag in the playlist_loop array.
-						foreach ( grep { $_->{'albumNumber'} == $albumGroup } @{$request->{_results}->{'playlist_loop'}} ) {
+						foreach ( grep { $plIndexAlbumSequence{$_->{'playlist index'}} == $albumGroup } @{ $request->getResult('playlist_loop') }) {
 							$_->{'contiguous_groups'} = $nonContiguous ? 0 : 1;
-							delete $_->{'albumNumber'};
 						}
 					}
 				}
