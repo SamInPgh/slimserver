@@ -4298,8 +4298,7 @@ sub statusQuery {
 								);
 
 						if ( $tags =~ /2/ ) {
-							# build a hash containing the grouping data for each album instance/track in the play queue and another one
-							# mapping playlist entries to their album instance.
+							# build a hash containing an array of hash refs to the playlist_loop items for each identified album group in the play queue.
 							my $track = @{ $request->getResult('playlist_loop') }[$count];
 							my $albumTrack = $track->{'album_id'} * 10000 + $track->{'tracknum'}; # used to detect a new album or a repeat of tracks from the same album
 
@@ -4312,7 +4311,7 @@ sub statusQuery {
 							$lastAlbum = $track->{'album_id'};
 							$lastAlbumTrack = $albumTrack;
 
-							$track->{_albumGroup} = $group;
+							$track->{_trackGroup} = $group;
 							$groups{$albumNumber} ||= [];
 							push @{$groups{$albumNumber}}, $track;
 						}
@@ -4327,7 +4326,7 @@ sub statusQuery {
 				}
 
 				if ( $tags =~ /2/ ) {
-					# process each album group in the playlist
+					# process each album group in the playlist. $albumGroupData is an array of hash refs to the playlist_loop entries for the $albumGroup.
 					while (my ($albumGroup, $albumGroupData) = each %groups) {
 						$albumGroupData ||= [];
 
@@ -4337,7 +4336,7 @@ sub statusQuery {
 
 						# determine whether album group contains contiguous or non-contiguous groups of tracks
 						foreach my $track ( sort { $a->{tracknum} <=> $b->{tracknum} } @$albumGroupData ) {
-							my $thisTrackGroup = $track->{_albumGroup};
+							my $thisTrackGroup = $track->{_trackGroup};
 							if ( $previousGroup ne $thisTrackGroup ) {
 								if ( $nonContiguous = $groupSeen->{$thisTrackGroup} && $thisTrackGroup ne '####' ) {
 									last;
@@ -4352,6 +4351,7 @@ sub statusQuery {
 						# now set the contiguous_groups flag in the playlist_loop array.
 						foreach ( @$albumGroupData ) {
 							$_->{'contiguous_groups'} = $nonContiguous ? 0 : 1;
+							delete $_{_trackGroup};
 						}
 					}
 				}
