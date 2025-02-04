@@ -795,14 +795,12 @@ sub initScanQueue {
 sub nextScanTask {
 	return if main::SCANNER || __PACKAGE__->stillScanning;
 
-	# first parameter would be either the class, or the request object (if triggered by a subscription)
-	my $force = $_[1];
 	my @keys = keys %scanQueue;
 
 	my $k    = shift @keys;
 	my $next = delete $scanQueue{$k};
 
-	if (!$force && $recentlyScanned{$k}++) {
+	if ($recentlyScanned{$k}++) {
 		main::INFOLOG && $log->is_info && $log->info("Skipping scan, as we run it recently: $k");
 		return;
 	}
