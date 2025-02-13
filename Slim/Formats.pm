@@ -15,7 +15,6 @@ use Audio::Scan;
 use Slim::Music::Info;
 use Slim::Utils::Log;
 use Slim::Utils::Misc;
-use Slim::Utils::Prefs;
 use Slim::Utils::Unicode;
 use Slim::Utils::Versions;
 
@@ -24,7 +23,6 @@ our (%tagClasses, %loadedTagClasses);
 
 my $init = 0;
 my $log  = logger('formats.audio');
-my $prefs = preferences('server');
 
 =head1 NAME
 
@@ -311,21 +309,14 @@ sub readTags {
 
 			# Bug 14587, sanity check all MusicBrainz ID tags to ensure it is a UUID and nothing more
 			if ( $tag =~ /^MUSICBRAINZ.*ID$/ ) {
-				my @values;
-				my @val;
-				if (ref $value eq 'ARRAY') {
-					@values = @$value;
-				} else {
-					@values = split($prefs->get('splitlist'), $value);
-				}
-
+				my @mbIDs;
 				# DiscID has a different format:
 				# http://wiki.musicbrainz.org/Disc_ID_Calculation
-				foreach my $val (@values) {
-					if ( $tag eq 'MUSICBRAINZ_DISCID' && $val =~ /^[0-9a-z_\.-]{28}$/i ) {
-						push @val, lc($1);
-					} elsif ( $val =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i ) {
-						push @val, lc($1);
+				foreach my $mbID ( Slim::Music::Info::splitTag($value) ) {
+					if ( $tag eq 'MUSICBRAINZ_DISCID' && $mbID =~ /^[0-9a-z_\.-]{28}$/i ) {
+						push @mbIDs, lc($1);
+					} elsif ( $mbID =~ /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i ) {
+						push @mbIDs, lc($1);
 					}
 					else {
 						if ( main::DEBUGLOG && $log->is_debug ) {
@@ -335,7 +326,7 @@ sub readTags {
 						next TAG;
 					}
 				}
-				$tags->{$tag} = [@val];
+				$tags->{$tag} = \@mbIDs;
 			}
 
 			$tagCache{$original} = $value;
