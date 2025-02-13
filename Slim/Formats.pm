@@ -15,6 +15,7 @@ use Audio::Scan;
 use Slim::Music::Info;
 use Slim::Utils::Log;
 use Slim::Utils::Misc;
+use Slim::Utils::Prefs;
 use Slim::Utils::Unicode;
 use Slim::Utils::Versions;
 
@@ -23,6 +24,7 @@ our (%tagClasses, %loadedTagClasses);
 
 my $init = 0;
 my $log  = logger('formats.audio');
+my $prefs = preferences('server');
 
 =head1 NAME
 
@@ -280,7 +282,7 @@ sub readTags {
 	# Bug: 2381 - FooBar2k seems to add UTF8 boms to their values.
 	# Bug: 3769 - Strip trailing nulls
 	# Bug: 3998 - Strip UTF-16 BOMs from multiple genres (or other values).
-	while (my ($tag, $value) = each %{$tags}) {
+	TAG: while (my ($tag, $value) = each %{$tags}) {
 
 		if (defined $value) {
 			my $original = $value;
@@ -309,22 +311,31 @@ sub readTags {
 
 			# Bug 14587, sanity check all MusicBrainz ID tags to ensure it is a UUID and nothing more
 			if ( $tag =~ /^MUSICBRAINZ.*ID$/ ) {
+				my @values;
+				my @val;
+				if (ref $value eq 'ARRAY') {
+					@values = @$value;
+				} else {
+					@values = split($prefs->get('splitlist'), $value);
+				}
 
 				# DiscID has a different format:
 				# http://wiki.musicbrainz.org/Disc_ID_Calculation
-				if ( $tag eq 'MUSICBRAINZ_DISCID' && $value =~ /^[0-9a-z_\.-]{28}$/i ) {
-					$value = lc($1);
-				} elsif ( $value =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i ) {
-					$value = lc($1);
-				}
-				else {
-					if ( main::DEBUGLOG && $log->is_debug ) {
-						$log->debug("Invalid MusicBrainz tag found in $file: $tag -> $value");
+				foreach my $val (@values) {
+					if ( $tag eq 'MUSICBRAINZ_DISCID' && $val =~ /^[0-9a-z_\.-]{28}$/i ) {
+						push @val, lc($1);
+					} elsif ( $val =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i ) {
+						push @val, lc($1);
 					}
-					delete $tags->{$tag};
-					next;
+					else {
+						if ( main::DEBUGLOG && $log->is_debug ) {
+							$log->debug("Invalid MusicBrainz tag found in $file: $tag -> $value");
+						}
+						delete $tags->{$tag};
+						next TAG;
+					}
 				}
-				$tags->{$tag} = $value;
+				$tags->{$tag} = [@val];
 			}
 
 			$tagCache{$original} = $value;
